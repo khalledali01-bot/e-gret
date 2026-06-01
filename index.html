@@ -109,6 +109,9 @@ button#btnRec{border-color:var(--red);color:var(--red)}button#btnRec.rec{backgro
   font-weight:700;letter-spacing:.18em;color:#e2e8f0;text-shadow:0 0 22px rgba(103,232,249,.7)}
 #introSkip{position:absolute;right:18px;bottom:18px;z-index:3;width:auto;padding:7px 12px;color:var(--cyan);
   border-color:var(--cyan);background:rgba(6,13,20,.62)}
+#introSound{position:absolute;left:18px;bottom:18px;z-index:3;width:auto;padding:7px 12px;color:var(--cyan);
+  border-color:var(--cyan);background:rgba(6,13,20,.62)}
+#introSound.hide{display:none}
 #setup{position:fixed;inset:0;z-index:19;background:rgba(2,6,10,.94);display:none;align-items:center;justify-content:center;
   padding:22px;flex-direction:column;gap:12px}
 #setup.show{display:flex}
@@ -195,6 +198,7 @@ button#btnRec{border-color:var(--red);color:var(--red)}button#btnRec.rec{backgro
   #intro:after{background:linear-gradient(180deg,rgba(2,6,10,.04),rgba(2,6,10,.2),rgba(2,6,10,.46))}
   #introTitle{font-size:clamp(36px,16vw,82px)}
   #introSkip{right:12px;bottom:12px;padding:10px 14px;font-size:12px}
+  #introSound{left:12px;bottom:12px;padding:10px 14px;font-size:12px}
 }
 @media (max-width:480px){
   #topbar{padding:3px 4px}
@@ -234,6 +238,7 @@ button#btnRec{border-color:var(--red);color:var(--red)}button#btnRec.rec{backgro
 <div id="intro">
   <video id="introVideo" src="e-gret-intro.mov" autoplay playsinline webkit-playsinline preload="auto"></video>
   <div id="introTitle">E-GRET</div>
+  <button id="introSound" type="button">SOUND ON</button>
   <button id="introSkip" type="button">SKIP</button>
 </div>
 <div id="setup">
@@ -901,7 +906,7 @@ wireInput('inWind','slWind','windVal',v=>v+'m/s',0,12,.5,v=>WIND_MEAN=v);
 wireInput('inCut','slCut','cutVal',v=>v+'m/s',0,20,.5,v=>WIND_CUT=v);
 document.getElementById('inShape').addEventListener('change',()=>{FIELD_SHAPE=document.getElementById('inShape').value==='SxL'?'SxL':'SxS';syncControls();applyAndReset();});
 document.getElementById('windOverlay').onchange=function(){showWind=this.checked;document.getElementById('windOvLbl').textContent=showWind?'ON':'OFF';};
-const intro=document.getElementById('intro'),introVideo=document.getElementById('introVideo'),setup=document.getElementById('setup');
+const intro=document.getElementById('intro'),introVideo=document.getElementById('introVideo'),introSound=document.getElementById('introSound'),setup=document.getElementById('setup');
 const INTRO_MS=10000;
 let introStartedAt=0,introTimer=null,audioCtx=null,introHasStarted=false;
 function getAudioCtx(){
@@ -930,6 +935,13 @@ function closeIntroAfterMinimum(){
   clearTimeout(introTimer);
   introTimer=setTimeout(closeIntro,wait);
 }
+function enableIntroSound(){
+  if(!introVideo)return;
+  introVideo.muted=false;
+  introVideo.volume=1;
+  introVideo.play().catch(()=>{});
+  if(introSound)introSound.classList.add('hide');
+}
 function startIntro(){
   if(introHasStarted)return;
   introHasStarted=true;
@@ -940,15 +952,22 @@ function startIntro(){
     introVideo.muted=false;
     introVideo.volume=1;
     introVideo.currentTime=0;
-    introVideo.play().catch(()=>{introVideo.muted=true;introVideo.play().catch(()=>{});});
+    introVideo.play().then(()=>{
+      if(!introVideo.muted&&introSound)introSound.classList.add('hide');
+    }).catch(()=>{
+      introVideo.muted=true;
+      introVideo.play().catch(()=>{});
+      if(introSound)introSound.classList.remove('hide');
+    });
     setTimeout(()=>{if(!intro.classList.contains('hide')&&introVideo.paused)closeIntroAfterMinimum();},INTRO_MS+700);
   }
   closeIntroAfterMinimum();
 }
 document.getElementById('introSkip').onclick=()=>{playClickSfx();closeIntro();};
+if(introSound)introSound.onclick=e=>{e.stopPropagation();enableIntroSound();};
 intro.addEventListener('pointerdown',e=>{
-  if(e.target&&e.target.id==='introSkip')return;
-  if(introVideo){introVideo.muted=false;introVideo.volume=1;introVideo.play().catch(()=>{});}
+  if(e.target&&(e.target.id==='introSkip'||e.target.id==='introSound'))return;
+  enableIntroSound();
 });
 if(introVideo){
   introVideo.loop=true;
